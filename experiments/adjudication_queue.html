@@ -1,0 +1,44 @@
+<html><head><meta charset='utf-8'><title>Mechanism adjudication — COMPLETE</title><style>
+body{font-family:sans-serif;max-width:920px;margin:2em auto;line-height:1.6}
+table{border-collapse:collapse;width:100%} td,th{border:1px solid #ccc;padding:.4em .8em;text-align:left}
+th{background:#f4f4f0} .g{color:#383;font-weight:bold} .r{color:#c33} .y{color:#a60}
+details{margin:1em 0;padding:.6em;background:#f8f8f4;border-radius:8px}
+</style></head><body>
+<h1>Mechanism adjudication — complete 🎉</h1>
+<p><b>55 cases → 0 pending.</b> Every disagreement between the detectors and Lichess labels is
+now either: encoded as one of your <b>15 rulings</b>, auto-resolved by the engine confirm tier,
+or human-ratified. Verdicts archived in <code>adjudication_verdicts.json</code>.</p>
+
+<h2>Final mechanism status</h2>
+<table>
+<tr><th>mechanism</th><th>status</th><th>basis</th></tr>
+<tr><td>mating_net</td><td class='g'>GRADUATED</td><td>66/66 label agreement; self-confirming</td></tr>
+<tr><td>fork</td><td class='g'>GRADUATED</td><td>98% + engine counterfactual (no defense saves both prongs)</td></tr>
+<tr><td>back_rank_mate</td><td class='g'>GRADUATED</td><td>83% labels + human ✅ (0CB3o); escape accounting is proof</td></tr>
+<tr><td>smothered_mate</td><td class='g'>GRADUATED</td><td>1/1; geometry-gated</td></tr>
+<tr><td>hanging_piece</td><td class='g'>GRADUATED (confirm-tier)</td><td>83% + perishability test (not compelled, not doomed)</td></tr>
+<tr><td>deflection</td><td class='g'>GRADUATED</td><td>86% + human ✅✅ (0Kzja, 0KBqj); forced-reply gate</td></tr>
+<tr><td>defender_removal</td><td class='g'>GRADUATED</td><td>human ✅✅✅ (0VHBI, 0FQDw, 0Lc8R) after rulings #12/#13/#15</td></tr>
+<tr><td>attraction</td><td class='g'>GRADUATED (confirm-tier only)</td><td>differential compulsion + bait boundary; candidates never spoken unconfirmed</td></tr>
+<tr><td>mate_threat</td><td class='g'>GRADUATED (confirm-tier)</td><td>ransom reclassification carries its mate refutations</td></tr>
+<tr><td>overload</td><td class='y'>conditional</td><td>fires only as conscription (ruling #6) or second-duty view</td></tr>
+<tr><td>file_battery</td><td class='r'>candidate only</td><td>new vocabulary (ruling #14); needs cases + a proper detector</td></tr>
+</table>
+
+<h2>Open items</h2>
+<ul>
+<li><b>0IJMb</b> — your ✅ vs confirm-tier rejection; recommendation: uphold ruling #7 (all defenses within 27cp — nothing was lured)</li>
+<li>Missing vocabulary, by demand: <b>intermezzo</b> (3 sightings), <b>x-ray/skewer-poisoned recapture</b> (0L0Sw), <b>file_battery</b> detector proper</li>
+<li><code>bad_trade</code> error class; takeaway table; margin-scaled language</li>
+</ul>
+<details><summary>The 15 rulings</summary><ol>
+<li>a free-choice reply was not lured</li><li>mechanisms compose; arrival → attraction primary</li>
+<li>a hanging piece is not a defender</li><li>a bought-off fork is still the fork; cause > execution</li>
+<li>consequence-forced is real compulsion</li><li>rule-forced reply = conscription → overload</li>
+<li>differential compulsion; equals are no lure</li><li>mate-threat compulsion = ransom</li>
+<li>bait taken → attraction; no bait → ransom</li><li>a free pawn is not a hanging piece</li>
+<li>hanging = perishable (not compelled, not doomed)</li><li>removal needs the LAST defender</li>
+<li>cheap defender for big target = removal, even free</li><li>battery-backed liquidation = the battery's work</li>
+<li>removal targets the most valuable ward; escape = bought off</li>
+</ol></details>
+</body></html>

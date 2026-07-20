@@ -1,0 +1,43 @@
+{
+ "08dpJ": {
+  "verdict": "wrong",
+  "note": "The knight was never defending c6. If it is hanging, it is not a defender.",
+  "interpretation": "judged against the OLD defender_removal claim; already encoded as ruling #3 \u2014 current claim is hanging_piece, consistent with this verdict"
+ },
+ "0Umfv": {
+  "note": "Fair.",
+  "interpretation": "accepts fork/bought_off \u2014 ruling #4 ratified"
+ },
+ "0IJMb": {
+  "verdict": "correct",
+  "interpretation": "CONFLICT: user ratifies the attraction claim, but the confirm tier auto-rejected it (equally-good defense exists). Needs final ruling."
+ },
+ "0VHBI": {
+  "verdict": "wrong",
+  "interpretation": "judged against the OLD attraction claim (r1252) \u2014 already encoded as ruling #7; current claim defender_removal stands per that same ruling"
+ },
+ "0QhFQ": {
+  "verdict": "correct",
+  "interpretation": "ratifies overload (own ruling #6)"
+ },
+ "0CB3o": {
+  "verdict": "correct",
+  "interpretation": "ratifies back_rank_mate on the Qxf7+ sac"
+ },
+ "0Lc8R": {
+  "verdict": "correct",
+  "interpretation": "ratifies defender_removal (exchange sac); intermezzo noted as missing vocabulary"
+ },
+ "03cd7": {
+  "verdict": "wrong",
+  "interpretation": "judged against old defender_removal claim \u2014 encoded as ruling #14 (file_battery)"
+ },
+ "07lKi": {
+  "verdict": "wrong",
+  "interpretation": "judged against old pawn-target claim \u2014 encoded as ruling #15 (target=queen, bought_off)"
+ },
+ "0KBqj": {
+  "verdict": "correct",
+  "interpretation": "ratifies deflection \u2014 second human-ratified deflection case"
+ }
+}
