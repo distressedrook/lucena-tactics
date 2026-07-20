@@ -212,3 +212,12 @@ elite games** on first run. The first named, detectable, corpus-validated plan
 in the system. Method note: 3 tagged games -> falsified a representation,
 refined the theory, and yielded a working detector, in under an hour — the
 ruling-loop applied to plans.
+
+---
+
+## 2026-07-21: positional track split out
+
+The plan-naming / positional-pedagogy work now lives in its own project:
+`~/Development/chess-plans` (detectors, trajectories, episodes, study data,
+CLAUDE.md with full context). chess-lab stays focused on tactical puzzle
+explanations. Shared method, independent code.
