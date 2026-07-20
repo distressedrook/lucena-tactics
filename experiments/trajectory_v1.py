@@ -74,7 +74,8 @@ def quiet_samples(game) -> tuple[list[dict], list[int], list[str], str] | None:
         prev_forcing = forcing
     if carlsbad_seen < 10 or len(samples) < LEN_MIN + WINDOW:
         return None
-    return samples, plies, all_sans, game.headers.get("Site", "")
+    url = game.headers.get("LichessURL") or game.headers.get("Site", "")
+    return samples, plies, all_sans, url
 
 
 def drift_episodes(samples: list[dict]) -> list[dict]:
