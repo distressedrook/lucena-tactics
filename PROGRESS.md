@@ -187,3 +187,28 @@ agreement from 38% → 87% and queue 55 → 0.
 - Data: experiments/*.jsonl are the validated corpus runs (train + held-out);
   adjudication record in `adjudication_verdicts.json`.
 - Gemini key was pasted in-session — **rotate it**.
+
+---
+
+## Addendum (late day one): the three-tagged-games experiment
+
+Three annotated study games (Lilienthal, Tal, Benko — minority attack, spans
+marked by the annotator) produced the positional track's first major finding:
+
+**The minority attack's CREATION phase is invisible to static term drift.**
+Across all three annotated spans, no eval term moves consistently (pawns +8/+9cp
+— the backward c-pawn's value is future pressure, not present centipawns). What
+v1's drift detection finds is the EXPLOITATION phase (Benko: activity +181,
+pawns +136 after the weakness was fixed). The sowing is silent; the harvest drifts.
+
+**The invariant is the CHOREOGRAPHY**: minority-side pawn traffic (b2-b4-b5,
+a4 support) and the b5/c6 lever. Plans that restructure are observable in the
+moves; plans that accumulate are observable in the terms. The episode
+representation must carry both channels or clustering finds only harvests.
+
+**Consequence delivered immediately**: `detect_minority_attack()` — a
+choreography theorem, mechanism-style — found **53 minority attacks in 28,461
+elite games** on first run. The first named, detectable, corpus-validated plan
+in the system. Method note: 3 tagged games -> falsified a representation,
+refined the theory, and yielded a working detector, in under an hour — the
+ruling-loop applied to plans.
