@@ -25,6 +25,14 @@ _SAN_RE = re.compile(
 )
 
 
+def _strength(cp: int) -> str:
+    """Margin-scaled language: the adjective must match the eval."""
+    if cp >= 500: return "a decisive advantage"
+    if cp >= 250: return "a winning advantage"
+    if cp >= 120: return "a clear advantage"
+    return "the better position"
+
+
 # ---------------------------------------------------------------- templates
 def template_prose(fs: FactSheet) -> str:
     """Deterministic fallback — every sentence maps 1:1 to a slot."""
@@ -57,7 +65,8 @@ def template_prose(fs: FactSheet) -> str:
         parts.append(f"{fs.solution} creates an unstoppable threat "
                      f"({' '.join(f.witness['threat_pv'])}).")
     else:
-        parts.append(f"{fs.solution} keeps a decisive advantage "
+        cp = int(f.witness.get("eval_cp", 300))
+        parts.append(f"{fs.solution} keeps {_strength(cp)} "
                      f"({' '.join(f.witness.get('line', []))}).")
 
     mech = f.witness.get("mechanism")
@@ -96,7 +105,11 @@ def template_prose(fs: FactSheet) -> str:
                              f"{mech['lured_piece']} from {mech['lured_from']} onto "
                              f"{mech['lured_to']}, where {mech['follow_up']} wins it.")
 
-    if e.value == "hung":
+    if e.value == "bad_trade":
+        parts.append(f"Your move {fs.played} starts an exchange that doesn't work: "
+                     f"{e.witness['they_retook']} takes back on {e.witness['square']} "
+                     f"and the trade nets you nothing.")
+    elif e.value == "hung":
         parts.append(f"Your move {fs.played} also loses material outright: "
                      f"{e.witness['capture']} simply takes on {e.witness['square']}.")
     elif e.value == "wrong_piece":
@@ -121,6 +134,11 @@ def template_prose(fs: FactSheet) -> str:
     else:
         parts.append(f"You are still winning, but gave back part of the "
                      f"advantage ({fs.delta.value}).")
+
+    from .takeaways import takeaway
+    tip = takeaway(fs)
+    if tip:
+        parts.append(f"Habit: {tip}")
     return " ".join(parts)
 
 

@@ -149,10 +149,20 @@ def build(probes: Probes, fen: str, solution_san: str, played_san: str) -> FactS
     s_mv = chess.Board(fen).parse_san(solution_san)
     if m_refut_ann and m_refut_ann[0]["capture"] \
             and m_refut_ann[0]["to"] == chess.square_name(m_mv.to_square):
-        fs.error = Slot("hung",
-                        {"predicate": "refutation_captures",
-                         "capture": m_refut_ann[0]["san"],
-                         "square": m_refut_ann[0]["to"]})
+        # (coaching ruling): a student who initiated a capture didn't "hang"
+        # the piece — they miscalculated a trade. Different mistake, different
+        # lesson: "count the whole exchange" vs "check what attacks your piece".
+        if chess.Board(fen).is_capture(m_mv):
+            fs.error = Slot("bad_trade",
+                            {"predicate": "initiated_exchange_refuted",
+                             "we_took": played_san,
+                             "they_retook": m_refut_ann[0]["san"],
+                             "square": m_refut_ann[0]["to"]})
+        else:
+            fs.error = Slot("hung",
+                            {"predicate": "refutation_captures",
+                             "capture": m_refut_ann[0]["san"],
+                             "square": m_refut_ann[0]["to"]})
     elif s_mv.to_square == m_mv.to_square:
         fs.error = Slot("wrong_piece",
                         {"predicate": "shared_target",

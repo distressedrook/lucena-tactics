@@ -550,6 +550,15 @@ def name_point(fen: str, san_line: list[str]) -> dict | None:
             board.push(mv_reply)
         except (ValueError, IndexError):
             break
+    # intermezzo composes with whatever was found (0JDnk: hanging_piece is
+    # the point, intermezzo the order); alone, it is the point itself.
+    imz = detect_intermezzo(fen, san_line)
+    if imz is not None:
+        if hanging_candidate is not None:
+            hanging_candidate.setdefault("also", []).append("intermezzo")
+            hanging_candidate["intermezzo"] = imz
+        else:
+            return imz
     return hanging_candidate
 
 
@@ -637,3 +646,61 @@ def confirm_hanging(probes, fen: str, san_line: list[str], mech: dict) -> bool:
         if "x" in san and san.rstrip("+#").endswith(sq):
             return False                  # doomed piece — no urgency, no lesson
     return True
+
+
+def detect_intermezzo(fen: str, san_line: list[str]) -> dict | None:
+    """Intermezzo (3 adjudicated sightings; canonical 0JDnk): a pending
+    profitable capture exists at the root, but the line plays a DIFFERENT
+    forcing move first and executes the pending capture only afterward.
+    The in-between move must earn something (material or check with gain) —
+    that earning is what the postponement buys."""
+    if len(san_line) < 3:
+        return None
+    board = chess.Board(fen)
+    us = board.turn
+    # pending captures at the root: enemy piece (not pawn), capturable for free
+    pending: dict[int, str] = {}
+    for sq, p in board.piece_map().items():
+        if (p.color != us and p.piece_type not in (chess.KING, chess.PAWN)
+                and board.attackers(us, sq)
+                and not board.attackers(not us, sq)):
+            pending[sq] = chess.piece_name(p.piece_type)
+    if not pending:
+        return None
+    mv0 = board.parse_san(san_line[0])
+    two_pending = mv0.to_square in pending and len(pending) >= 2
+    if mv0.to_square in pending and not two_pending:
+        return None                        # took the only pending piece — no in-between
+    if two_pending and not board.gives_check(mv0):
+        return None                        # ordering two pending captures is only an
+                                           # intermezzo when the first is the forcing one
+    if not (board.gives_check(mv0) or board.is_capture(mv0)):
+        return None                        # the in-between move must be forcing
+    # the postponed capture must actually happen at our next move
+    b = board.copy()
+    b.push(mv0)
+    try:
+        mv1 = b.parse_san(san_line[1])
+        b.push(mv1)
+        mv2 = b.parse_san(san_line[2])
+    except (ValueError, IndexError):
+        return None
+    if mv2.to_square not in pending or not b.is_capture(mv2):
+        return None
+    # what did the in-between move earn? a capture, or a check that won tempo
+    gain = None
+    if board.is_capture(mv0):
+        vic = board.piece_at(mv0.to_square)
+        if vic is not None:
+            gain = f"wins the {chess.piece_name(vic.piece_type)} on {chess.square_name(mv0.to_square)}"
+            if two_pending:
+                gain += " first — it would have escaped; the other capture keeps"
+    if gain is None and board.gives_check(mv0):
+        gain = "gains a tempo with check"
+    if gain is None:
+        return None
+    return {"mechanism": "intermezzo",
+            "in_between": san_line[0], "in_between_gain": gain,
+            "postponed_capture": san_line[2],
+            "pending_piece": f"{pending[mv2.to_square]} on {chess.square_name(mv2.to_square)}",
+            "note": "the pending capture could wait; the in-between profit could not"}
