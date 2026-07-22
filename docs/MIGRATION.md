@@ -14,8 +14,8 @@ python-chess** in this repo; `analysis.py`/`gamepass.py` move to the backend.
 
 | phase | what | status |
 |---|---|---|
-| 0 | freeze & baseline + differential harness | **in progress (2026-07-23)** |
-| 1 | python-chess SEE + compat Board in /lucena-core skeleton | pending |
+| 0 | freeze & baseline + differential harness | **done 2026-07-23** (freeze commits: tactics 6523864, backend 90164cf, superrepo 8d0b047; see self-check 439 cases 0 diffs) |
+| 1 | python-chess SEE + compat Board in /lucena-core skeleton | **done 2026-07-23** — 60/60 ported contract tests (26 SEE + 34 board); differential vs Rust: 2,279 + 13,276 = **15,555 capture cases, 0 diffs** (seeds 7, 42) |
 | 2 | board-truth modules → core; /common folds in | pending |
 | 3 | flip consumers (backend/tactics/plans/serve.sh); engine partial slim | pending |
 | 4 | census + facts + hints rewritten here; backend shims | pending |
