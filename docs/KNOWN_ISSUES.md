@@ -95,3 +95,19 @@ from the LLM's input). Known soft spots to probe during adjudication:
 Graduation needs the standard funnel: run over the 299-puzzle corpus +
 held-out set, sample precision, adjudicate the disagreements, then admit each
 mechanism to the factsheet's GRADUATED set (and template prose) one by one.
+
+## 8. corpus_labels.jsonl.gz lost in the history purge (regenerable, engine-hours)
+
+**Where:** `research/experiments/corpus_labels.jsonl.gz` (326MB, gitignored now).
+
+**What's wrong:** the 2026-07-23 pre-push history rewrite (large corpora
+should never have been committed; the pack was 381MB) removed the file from
+git AND — because it was tracked — from the working tree, and no other copy
+existed on this machine. It was the labeling pipeline's intermediate output
+(`label_corpus.py` over the Lichess puzzle corpus). The VALIDATED artifacts
+all survive: `results.jsonl`, `results_heldout.jsonl`, `episodes.jsonl`,
+`adjudication_verdicts.json`, `test_rulings.py`. Regenerate when next needed
+by re-running the labeling pipeline over `lichess_db_puzzle.csv` (restored on
+disk from the Downloads .zst) — deterministic at fixed nodes, but costs
+engine-hours; exact byte-identity with the lost file is not guaranteed if the
+upstream puzzle snapshot differs.
