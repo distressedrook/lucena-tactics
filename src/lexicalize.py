@@ -177,6 +177,11 @@ _MECHANISM_WORDS = {
     "smothered": "smothered_mate", "decoy": "attraction",
     "x-ray": "xray", "xray": "xray", "discovered": "discovered",
     "battery": "battery",
+    "interference": "interference", "interfere": "interference",
+    "interferes": "interference", "novotny": "interference",
+    "clearance": "clearance", "windmill": "windmill",
+    "desperado": "desperado", "underpromotion": "underpromotion",
+    "underpromote": "underpromotion", "underpromotes": "underpromotion",
     "sacrifice": "sacrifice", "sacrificed": "sacrifice", "sacrifices": "sacrifice",
     "trapped": "trapped", "hanging": "hanging_piece", "hangs": "hanging_piece",
     "back-rank": "back_rank_mate", "back rank": "back_rank_mate",
@@ -250,7 +255,8 @@ def _redact(obj):
     if isinstance(obj, dict):
         return {k: _redact(v) for k, v in obj.items()
                 if k not in ("mechanism_candidate", "secondary", "execution",
-                             "geometry_candidate")}
+                             "geometry_candidate", "windmill", "sacrifice",
+                             "promotion", "underpromotion")}
     if isinstance(obj, list):
         return [_redact(x) for x in obj]
     return obj

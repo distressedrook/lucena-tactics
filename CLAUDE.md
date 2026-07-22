@@ -302,6 +302,35 @@ ride `lucena_core.board.Board` — the compat class with the old wrapper API —
 while new code uses python-chess directly. That seam is deliberate and
 documented, not an accident.
 
+## 2026-07-24: detection completeness — the gap detectors land
+
+The theme-coverage audit (`research/experiments/theme_coverage.py`, now the
+permanent recall scoreboard: name_point over 120 Lichess-labeled puzzles per
+theme) mapped the voids; this session filled them, recall-first — precision
+is the adjudication loop's job later, and everything new stays candidate
+tier (data, not speech).
+
+New in `mechanism.py`: `detect_pin_setting` (fictional_defender +
+frozen_bystander — the pin-as-setting shapes the capture-anchored pin
+missed), `detect_xray` (through an ENEMY piece: the blocker leaves the ray,
+the slider lands), `detect_interference` (occupying a defense ray; Novotny
+flagged when ≥2 lines cut), `detect_clearance` (square + line shapes;
+along-ray vacations are battery's job), `detect_windmill`, `detect_desperado`,
+whole-line annotations (`sacrifice` via brilliant.is_material_sacrifice,
+`promotion`/`underpromotion` incl. 7th-rank passers, `double_check`) with
+promotion/underpromotion/sacrifice as last-resort candidates, mate returns
+decorated with the window-0 geometry (the clearance that BUILT the mate is
+still the geometric story), and a loosened discovered-attack (any-minor
+second threat tier; mate counts as collection).
+
+Coverage movement (named / theme-matched, before → after):
+pin 56/10 → 83/45 · doubleCheck 87/2 → 95/95 · interference 45/0 → 72/25 ·
+clearance 43/0 → 70/19 · xRay 76/0 → 91/67 · sacrifice 71/0 → 93/75 ·
+promotion —/0 → **100/100** · attraction named 80 → 94 (matched stays 12 —
+our graduated gates are stricter than the lichess label; adjudicate later).
+Mates stay 100/100. Regression pins: `tests/test_gap_detectors.py`
+(corpus-pinned real puzzles per detector). All 15 rulings hold throughout.
+
 ## Infrastructure notes
 
 - Engine: lucena-engine gRPC, `LUCENA_ADDR` (default `127.0.0.1:50052`).

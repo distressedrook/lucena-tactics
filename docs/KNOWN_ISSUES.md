@@ -111,3 +111,23 @@ by re-running the labeling pipeline over `lichess_db_puzzle.csv` (restored on
 disk from the Downloads .zst) — deterministic at fixed nodes, but costs
 engine-hours; exact byte-identity with the lost file is not guaranteed if the
 upstream puzzle snapshot differs.
+
+## 9. Gap detectors (2026-07-24) are recall-first, zero adjudications
+
+**Where:** `src/mechanism.py` — `detect_pin_setting`, `detect_xray`,
+`detect_interference`, `detect_clearance`, `detect_windmill`,
+`detect_desperado`, the whole-line annotations, and the loosened
+discovered-attack tier.
+
+**What's wrong:** deliberately nothing filtered yet — the owner's ruling for
+this batch was "see to it that all the patterns are detected; explanation
+comes later." Expect real false positives (the loose discovered-attack tier,
+frozen_bystander pins, square-clearance) and taxonomy fights (our attraction
+vs lichess's — matched 12% while named 94%). The theme-coverage harness
+(research/experiments/theme_coverage.py) is the scoreboard; graduation for
+each name needs the standard funnel (corpus precision sampling + human
+rulings) before anything is spoken. Interference (25%) and clearance (19%)
+matched-rates say the detectors catch the crisp shapes only — the fuzzy
+remainder (defensive-line cuts to squares, multi-purpose clearances) needs
+either richer shapes or the adjudication loop's verdict that the label is
+the noisy party.

@@ -636,6 +636,17 @@ def detect_discovered_attack(fen: str, san_line: list[str], ply: int = 0) -> dic
                 second_sq = u_sq
                 break
     if second is None:
+        # loose tier (recall-first, 2026-07-24): any minor-or-better attacked
+        # by the mover still makes it a double threat — the strict tiers above
+        # keep the better witness when they apply.
+        for u_sq in b1.attacks(mv.to_square):
+            up = b1.piece_at(u_sq)
+            if up is not None and up.color != us and _VAL[up.piece_type] >= _VAL[chess.KNIGHT]:
+                second = (f"attacks the {chess.piece_name(up.piece_type)} "
+                          f"on {chess.square_name(u_sq)}")
+                second_sq = u_sq
+                break
+    if second is None:
         return None                      # one threat is just an attack, not a discovery
 
     # collection: a later own move captures the unmasked target or the
@@ -655,6 +666,9 @@ def detect_discovered_attack(fen: str, san_line: list[str], ply: int = 0) -> dic
             collected = san
             break
         b2.push(m2)
+        if b2.is_checkmate():
+            collected = san              # the discovery fed the mating attack
+            break
     if collected is None:
         if disc_check and captured_type not in (None, chess.PAWN):
             collected = san_line[ply]    # the grab stands because of the check
@@ -931,13 +945,496 @@ def detect_battery(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# Gap detectors (2026-07-24, recall-first): pin-as-setting, x-ray through an
+# enemy piece, interference, clearance, windmill, desperado. Built after the
+# theme-coverage audit (research/experiments/theme_coverage.py) mapped the
+# voids. Same rules as every candidate: total geometry over (fen, line), the
+# line must USE the shape, never spoken until adjudicated. Precision
+# tightening is the adjudication loop's job — detection completeness first.
+# ═══════════════════════════════════════════════════════════════════════
+
+def detect_pin_setting(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
+    """Pin-as-setting — the line EXPLOITS an existing pin without needing to
+    capture the pinned piece on its square (the shape the lichess `pin` label
+    mostly means, which detect_pin's capture-anchored shapes miss):
+
+      fictional_defender: a later own capture lands on a square 'defended' by
+        a pinned enemy piece — absolutely pinned (recapture illegal) or
+        relatively pinned (recapture exposes the more valuable piece behind).
+      frozen_bystander: an enemy piece is pinned for the WHOLE line while our
+        line profits through squares it pretends to cover.
+    """
+    board = _replay(fen, san_line, ply)
+    if board is None:
+        return None
+    us = board.turn
+
+    b = board.copy()
+    for j, san in enumerate(san_line[ply:], start=ply):
+        try:
+            mv = b.parse_san(san)
+        except ValueError:
+            break
+        if (j - ply) % 2 == 0 and b.is_capture(mv):
+            t = mv.to_square
+            # every enemy "defender" of t that is pinned is a fictional one
+            for d in b.attackers(not us, t):
+                dp = b.piece_at(d)
+                if dp is None or dp.piece_type == chess.KING:
+                    continue
+                pin_kind = rear = None
+                if b.is_pinned(not us, d):
+                    pin_kind = "absolute"
+                else:
+                    for sl_sq in b.attackers(us, d):
+                        slp = b.piece_at(sl_sq)
+                        if slp.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+                            continue
+                        r_sq = _behind(b, sl_sq, d)
+                        if r_sq is None:
+                            continue
+                        rp = b.piece_at(r_sq)
+                        if rp is not None and rp.color != us \
+                                and _VAL[rp.piece_type] > _VAL[dp.piece_type]:
+                            pin_kind, rear = "relative", r_sq
+                            break
+                if pin_kind is None:
+                    continue
+                # the pin must MATTER: without it the recapture stands
+                out = {"mechanism": "pin", "shape": "fictional_defender",
+                       "pin_kind": pin_kind,
+                       "exploiting_move": san, "at_ply": j,
+                       "pinned_defender": chess.piece_name(dp.piece_type),
+                       "pinned_on": chess.square_name(d),
+                       "target": chess.square_name(t)}
+                if pin_kind == "absolute":
+                    out["pinned_against"] = chess.square_name(b.king(not us))
+                else:
+                    out["pinned_against"] = (f"{chess.piece_name(b.piece_at(rear).piece_type)} "
+                                             f"on {chess.square_name(rear)}")
+                return out
+        b.push(mv)
+
+    # -- frozen_bystander: a piece pinned at the window root that never moves
+    #    while the line collects on (or mates through) a square it covers ----
+    b0 = board
+    for p_sq, pp in b0.piece_map().items():
+        if pp.color == us or pp.piece_type == chess.KING:
+            continue
+        if not b0.is_pinned(not us, p_sq):
+            continue
+        covered = set(b0.attacks(p_sq))
+        b = b0.copy()
+        used = None
+        moved = False
+        for j, san in enumerate(san_line[ply:], start=ply):
+            try:
+                mv2 = b.parse_san(san)
+            except ValueError:
+                break
+            if mv2.from_square == p_sq:
+                moved = True
+                break
+            if (j - ply) % 2 == 0 and mv2.to_square in covered \
+                    and (b.is_capture(mv2) or b.gives_check(mv2)):
+                used = (san, mv2.to_square)
+            b.push(mv2)
+        if used is not None and not moved:
+            return {"mechanism": "pin", "shape": "frozen_bystander",
+                    "pinned_piece": chess.piece_name(pp.piece_type),
+                    "pinned_on": chess.square_name(p_sq),
+                    "pinned_against": chess.square_name(b0.king(not us)),
+                    "exploited_square": chess.square_name(used[1]),
+                    "exploiting_move": used[0],
+                    "note": "its coverage was fictional — moving would expose the king"}
+    return None
+
+
+def detect_xray(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
+    """X-ray through an ENEMY piece — our slider bears on a square THROUGH an
+    enemy man; when that man leaves the ray (typically by capturing on the
+    very square), the slider's attack lands. Line shape: our move to t, the
+    enemy BLOCKER itself recaptures on t, and our blocked slider — which
+    could not see t before — collects it."""
+    if len(san_line) < ply + 3:
+        return None
+    board = _replay(fen, san_line, ply)
+    if board is None:
+        return None
+    us = board.turn
+    try:
+        mv = board.parse_san(san_line[ply])
+    except (ValueError, IndexError):
+        return None
+    t = mv.to_square
+
+    # our sliders aligned to t but blocked by exactly one ENEMY piece
+    blocked: list[tuple[int, int]] = []          # (slider_sq, blocker_sq)
+    for sl_sq, sl in board.piece_map().items():
+        if sl.color != us or sl.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+            continue
+        if sl_sq == mv.from_square:
+            continue
+        ray = chess.ray(sl_sq, t)
+        if not ray or t in board.attacks(sl_sq):
+            continue                              # not aligned, or not blocked at all
+        between = chess.between(sl_sq, t) & board.occupied
+        if chess.popcount(between) != 1:
+            continue
+        b_sq = chess.msb(between)
+        bp = board.piece_at(b_sq)
+        if bp is not None and bp.color != us:
+            blocked.append((sl_sq, b_sq))
+    if not blocked:
+        return None
+
+    # the line must show the x-ray landing: the blocker leaves its square (for
+    # any reason — usually by recapturing on t itself) and our slider then
+    # captures on t from its original square.
+    b2 = board.copy()
+    b2.push(mv)
+    moved_blockers: set[int] = set()
+    for j, san in enumerate(san_line[ply + 1:], start=ply + 1):
+        try:
+            m2 = b2.parse_san(san)
+        except ValueError:
+            break
+        if m2.from_square in {bl for _, bl in blocked}:
+            moved_blockers.add(m2.from_square)
+        if (j - ply) % 2 == 0 and b2.is_capture(m2):
+            hit = next(((sl, bl) for sl, bl in blocked
+                        if m2.from_square == sl and m2.to_square == t
+                        and bl in moved_blockers), None)
+            if hit is not None:
+                sl_sq, bl_sq = hit
+                return {"mechanism": "xray",
+                        "move": san_line[ply],
+                        "slider": chess.piece_name(board.piece_at(sl_sq).piece_type),
+                        "slider_on": chess.square_name(sl_sq),
+                        "through_enemy": (f"{chess.piece_name(board.piece_at(bl_sq).piece_type)} "
+                                          f"on {chess.square_name(bl_sq)}"),
+                        "square": chess.square_name(t),
+                        "collected_with": san,
+                        "note": "the enemy blocker left the ray and the x-ray landed"}
+        b2.push(m2)
+    return None
+
+
+def detect_interference(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
+    """Interference — our move OCCUPIES a square on the ray by which an enemy
+    slider defended a piece, cutting the defense; the line then collects the
+    now-underdefended piece (Novotny when two rays are cut at once)."""
+    board = _replay(fen, san_line, ply)
+    if board is None:
+        return None
+    us = board.turn
+    try:
+        mv = board.parse_san(san_line[ply])
+    except (ValueError, IndexError):
+        return None
+    s = mv.to_square
+
+    cuts = []
+    for d_sq, dp in board.piece_map().items():
+        if dp.color == us or dp.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+            continue
+        if s not in board.attacks(d_sq):
+            continue                              # slider doesn't reach s
+        t_sq = _behind(board, d_sq, s)
+        if t_sq is None:
+            continue
+        tp = board.piece_at(t_sq)
+        if tp is None or tp.color == us:
+            continue                              # nothing of theirs beyond s
+        cuts.append((d_sq, t_sq))
+    if not cuts:
+        return None
+
+    b1 = board.copy()
+    b1.push(mv)
+    cut_targets = {t for _, t in cuts}
+    b2 = b1.copy()
+    collected = None
+    for j, san in enumerate(san_line[ply + 1:], start=ply + 1):
+        try:
+            m2 = b2.parse_san(san)
+        except ValueError:
+            break
+        if (j - ply) % 2 == 0 and b2.is_capture(m2) and m2.to_square in cut_targets:
+            collected = (san, m2.to_square)
+            break
+        b2.push(m2)
+        if b2.is_checkmate():
+            collected = (san, None)               # the cut enabled the mate
+            break
+    if collected is None:
+        return None
+    san_c, t_used = collected
+    out = {"mechanism": "interference",
+           "interfering_move": san_line[ply],
+           "square": chess.square_name(s),
+           "cut_lines": [
+               {"slider": f"{chess.piece_name(board.piece_at(d).piece_type)} on {chess.square_name(d)}",
+                "was_defending": f"{chess.piece_name(board.piece_at(t).piece_type)} on {chess.square_name(t)}"}
+               for d, t in cuts],
+           "collected_with": san_c}
+    if t_used is not None:
+        out["target"] = chess.square_name(t_used)
+    if len(cuts) >= 2:
+        out["novotny"] = True
+    return out
+
+
+def detect_clearance(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
+    """Clearance — a move vacates a square or a line so a FRIENDLY piece can
+    use it. Two shapes:
+      square: the vacated square is reoccupied by another friendly piece at a
+        later own ply, forcibly (capture/check) or as part of the mating line.
+      line: the vacating move unmasks a friendly slider's ray to a target the
+        line then uses — like a discovered attack but with NO second threat
+        required of the mover (that stricter shape is discovered_attack)."""
+    board = _replay(fen, san_line, ply)
+    if board is None:
+        return None
+    us = board.turn
+    try:
+        mv = board.parse_san(san_line[ply])
+    except (ValueError, IndexError):
+        return None
+    from_sq = mv.from_square
+    mover = board.piece_at(from_sq)
+    if mover is None:
+        return None
+
+    # -- line clearance: friendly slider unmasked toward an enemy target -----
+    uncovered = None
+    for sl_sq, sl in board.piece_map().items():
+        if sl.color != us or sl.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
+            continue
+        if sl_sq == from_sq or from_sq not in board.attacks(sl_sq):
+            continue
+        t_sq = _behind(board, sl_sq, from_sq)
+        if t_sq is None:
+            continue
+        tp = board.piece_at(t_sq)
+        if tp is not None and tp.color != us:
+            uncovered = (sl_sq, t_sq)
+            break
+    b1 = board.copy()
+    b1.push(mv)
+    if uncovered is not None:
+        sl_sq, t_sq = uncovered
+        along_ray = chess.ray(sl_sq, from_sq) and mv.to_square in chess.SquareSet(chess.ray(sl_sq, from_sq))
+        if t_sq in b1.attacks(sl_sq) and not along_ray:  # along-ray = battery's job, not clearance
+            b2 = b1.copy()
+            for j, san in enumerate(san_line[ply + 1:], start=ply + 1):
+                try:
+                    m2 = b2.parse_san(san)
+                except ValueError:
+                    break
+                if (j - ply) % 2 == 0 and b2.is_capture(m2) and m2.to_square == t_sq:
+                    return {"mechanism": "clearance", "shape": "line",
+                            "clearing_move": san_line[ply],
+                            "unblocked": (f"{chess.piece_name(board.piece_at(sl_sq).piece_type)} "
+                                          f"on {chess.square_name(sl_sq)}"),
+                            "target": chess.square_name(t_sq),
+                            "collected_with": san}
+                b2.push(m2)
+
+    # -- square clearance: the vacated square is forcibly reused ------------
+    b2 = b1.copy()
+    for j, san in enumerate(san_line[ply + 1:], start=ply + 1):
+        try:
+            m2 = b2.parse_san(san)
+        except ValueError:
+            break
+        if (j - ply) % 2 == 0 and m2.to_square == from_sq:
+            arriving = b2.piece_at(m2.from_square)
+            forcing = b2.is_capture(m2) or b2.gives_check(m2)
+            if arriving is not None and arriving.color == us and forcing:
+                return {"mechanism": "clearance", "shape": "square",
+                        "clearing_move": san_line[ply],
+                        "vacated": chess.square_name(from_sq),
+                        "reused_by": f"{chess.piece_name(arriving.piece_type)} ({san})",
+                        "collected_with": san}
+        b2.push(m2)
+    return None
+
+
+def detect_windmill(fen: str, san_line: list[str]) -> dict | None:
+    """Windmill — the same piece delivers two or more discovered checks in one
+    line, harvesting material between them."""
+    board = chess.Board(fen)
+    us = board.turn
+    disc_checks = []
+    captures = 0
+    b = board.copy()
+    for j, san in enumerate(san_line):
+        try:
+            mv = b.parse_san(san)
+        except ValueError:
+            break
+        own = j % 2 == 0
+        cap = b.is_capture(mv)
+        b.push(mv)
+        if own:
+            if cap:
+                captures += 1
+            if b.is_check():
+                checkers = b.checkers()
+                if checkers and mv.to_square not in checkers:
+                    disc_checks.append((san, chess.square_name(mv.from_square)))
+    if len(disc_checks) < 2 or captures < 1:
+        return None
+    return {"mechanism": "windmill",
+            "discovered_checks": [s for s, _ in disc_checks],
+            "harvest_captures": captures,
+            "note": "repeated discovered checks; the harvest happens between them"}
+
+
+def detect_desperado(fen: str, san_line: list[str], ply: int = 0) -> dict | None:
+    """Desperado — a doomed piece grabs material before it dies: the mover was
+    already attacked with insufficient defense, captures something, and is
+    immediately taken."""
+    if len(san_line) < ply + 2:
+        return None
+    board = _replay(fen, san_line, ply)
+    if board is None:
+        return None
+    us = board.turn
+    try:
+        mv = board.parse_san(san_line[ply])
+    except (ValueError, IndexError):
+        return None
+    if not board.is_capture(mv):
+        return None
+    p = board.piece_at(mv.from_square)
+    if p is None or p.piece_type in (chess.KING, chess.PAWN):
+        return None
+    atk = board.attackers(not us, mv.from_square)
+    if not atk:
+        return None
+    dfd = board.attackers(us, mv.from_square)
+    cheapest = min(_VAL[board.piece_at(a).piece_type] for a in atk)
+    doomed = (not dfd) or cheapest < _VAL[p.piece_type]
+    if not doomed:
+        return None
+    vic = board.piece_at(mv.to_square)
+    gain = _VAL[vic.piece_type] if vic else 1
+    b1 = board.copy()
+    b1.push(mv)
+    try:
+        reply = b1.parse_san(san_line[ply + 1])
+    except (ValueError, IndexError):
+        return None
+    if not (b1.is_capture(reply) and reply.to_square == mv.to_square):
+        return None                               # it wasn't taken — not a desperado story
+    return {"mechanism": "desperado",
+            "piece": chess.piece_name(p.piece_type),
+            "was_doomed_on": chess.square_name(mv.from_square),
+            "grabbed": f"{chess.piece_name(vic.piece_type) if vic else 'pawn'} "
+                       f"on {chess.square_name(mv.to_square)}",
+            "grab_cp": gain,
+            "with": san_line[ply]}
+
+
+def _line_annotations(fen: str, san_line: list[str]) -> dict:
+    """Cheap whole-line flags attached to whatever mechanism is returned:
+    sacrifice (the first move offers material by SEE/board geometry, via
+    brilliant.is_material_sacrifice) and promotion/underpromotion."""
+    ann: dict = {}
+    b = chess.Board(fen)
+    for j, san in enumerate(san_line):
+        try:
+            mv = b.parse_san(san)
+        except ValueError:
+            break
+        if j % 2 == 0 and mv.promotion:
+            ann["promotion"] = True
+            if mv.promotion != chess.QUEEN:
+                ann["underpromotion"] = True
+        if j % 2 == 0 and (pc := b.piece_at(mv.from_square)) is not None \
+                and pc.piece_type == chess.PAWN:
+            rel = chess.square_rank(mv.to_square) if pc.color == chess.WHITE \
+                else 7 - chess.square_rank(mv.to_square)
+            if rel >= 6:
+                ann["promotion"] = True          # unstoppable-passer territory
+        is_own = j % 2 == 0
+        b.push(mv)
+        if is_own and b.is_check() and len(b.checkers()) > 1:
+            ann["double_check"] = True
+    try:
+        try:
+            from .brilliant import is_material_sacrifice
+        except ImportError:
+            from brilliant import is_material_sacrifice
+        from lucena_core.board import Board as _CoreBoard
+        cb = _CoreBoard(fen)
+        uci0 = cb.uci(san_line[0].replace(" e.p.", "").rstrip("!?"))
+        if is_material_sacrifice(cb, uci0):
+            ann["sacrifice"] = True
+    except Exception:
+        pass
+    return ann
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # Orchestrator — the single entry point.
 # Mate outranks everything (a material mechanism inside a mating line is
 # subplot, not point). Otherwise scan each own-move window along the line:
 # the mechanism may sit at move two or three of the combination.
 # ═══════════════════════════════════════════════════════════════════════
 
+def _geometry_at(fen: str, san_line: list[str]) -> dict | None:
+    """The ray-geometry chain at one window — used to decorate mate returns,
+    which short-circuit before the window scan (a mate outranks everything,
+    but the clearance/interference/x-ray that BUILT the mate is still the
+    geometric story and must be detected)."""
+    return (detect_discovered_attack(fen, san_line)
+            or detect_skewer(fen, san_line)
+            or detect_xray(fen, san_line)
+            or detect_interference(fen, san_line)
+            or detect_battery(fen, san_line)
+            or detect_clearance(fen, san_line)
+            or detect_pin(fen, san_line)
+            or detect_pin_setting(fen, san_line)
+            or detect_trapped_piece(fen, san_line)
+            or detect_desperado(fen, san_line))
+
+
 def name_point(fen: str, san_line: list[str]) -> dict | None:
+    """The single entry point: scan for the point, then attach the whole-line
+    annotations (sacrifice / promotion / windmill views). If the scan found
+    nothing at all, an annotation-only candidate is better than silence —
+    data, not speech, like every ungraduated name."""
+    m = _name_point_scan(fen, san_line)
+    ann = _line_annotations(fen, san_line)
+    wm = detect_windmill(fen, san_line)
+    if m is not None:
+        m.update(ann)
+        if wm is not None and m.get("mechanism") != "windmill":
+            m.setdefault("also", []).append("windmill")
+            m["windmill"] = wm
+        if "geometry_candidate" not in m and m.get("mechanism") in (
+                "mating_net", "back_rank_mate", "smothered_mate"):
+            g0 = _geometry_at(fen, san_line)
+            if g0 is not None:
+                g0["at_move"] = san_line[0]
+                m["geometry_candidate"] = g0
+        return m
+    if wm is not None:
+        wm.update(ann)
+        return wm
+    if ann.get("underpromotion"):
+        return {"mechanism": "underpromotion", **ann}
+    if ann.get("sacrifice"):
+        return {"mechanism": "sacrifice", **ann}
+    if ann.get("promotion"):
+        return {"mechanism": "promotion", **ann}
+    return None
+
+
+def _name_point_scan(fen: str, san_line: list[str]) -> dict | None:
     from .predicates import annotate_line
 
     mate = detect_mate_pattern(fen, san_line)
@@ -980,9 +1477,14 @@ def name_point(fen: str, san_line: list[str]) -> dict | None:
         # otherwise attached as data (redacted from the LLM).
         g = (detect_discovered_attack(sub_fen, suffix)
              or detect_skewer(sub_fen, suffix)
+             or detect_xray(sub_fen, suffix)
+             or detect_interference(sub_fen, suffix)
+             or detect_battery(sub_fen, suffix)
+             or detect_clearance(sub_fen, suffix)
              or detect_pin(sub_fen, suffix)
+             or detect_pin_setting(sub_fen, suffix)
              or detect_trapped_piece(sub_fen, suffix)
-             or detect_battery(sub_fen, suffix))
+             or detect_desperado(sub_fen, suffix))
         if g is not None:
             g["at_move"] = suffix[0]
             if geometry_first is None:
