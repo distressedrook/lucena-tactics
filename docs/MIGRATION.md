@@ -16,7 +16,7 @@ python-chess** in this repo; `analysis.py`/`gamepass.py` move to the backend.
 |---|---|---|
 | 0 | freeze & baseline + differential harness | **done 2026-07-23** (freeze commits: tactics 6523864, backend 90164cf, superrepo 8d0b047; see self-check 439 cases 0 diffs) |
 | 1 | python-chess SEE + compat Board in /lucena-core skeleton | **done 2026-07-23** — 60/60 ported contract tests (26 SEE + 34 board); differential vs Rust: 2,279 + 13,276 = **15,555 capture cases, 0 diffs** (seeds 7, 42) |
-| 2 | board-truth modules → core; /common folds in | pending |
+| 2 | board-truth modules → core; /common folds in | **done 2026-07-23** — 189/189 core tests (incl. ported test_detect 9, test_openings 28, test_positional 32, test_grpc_smoke 11); positional differential 1000 positions → 4 diffs, all pure ±1cp float-accumulation noise at exact .5 rounding boundaries (**adjudicated**: core canonicalizes summation order by square; the Rust-era result depended on piece_list iteration order, so the true value −13.5 rounded differently per substrate — no semantic drift, standings/thresholds unaffected). Constructor divergence adjudicated: python-chess OPPOSITE_CHECK relaxed for adjacent kings (a king can never give check — old-core convention, needed by detect.py paste inputs). engine_client copied from /common (consumer flip + /common deletion = Phase 3). evalmodel.MISTAKE made public in engine (additive freeze exception). |
 | 3 | flip consumers (backend/tactics/plans/serve.sh); engine partial slim | pending |
 | 4 | census + facts + hints rewritten here; backend shims | pending |
 | 5 | line_tree/puzzle/brilliant; analysis+gamepass → backend; engine final slim + publish | pending |
