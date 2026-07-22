@@ -268,6 +268,40 @@ vocabulary. Specifics:
   duplicate of `_next_or_finish`'s ending) was dropped in transit — provably
   dead, behavior identical.
 
+## 2026-07-23: the core migration — this repo becomes the tactical lifecycle
+
+The engine-slim migration (full record: `docs/MIGRATION.md`) landed the rest
+of the tactical stack here. lucena-engine is now a pure Stockfish/Maia
+wrapper (public, AGPL); board truth (python-chess board + differential-gated
+SEE port, positional, detect/pgn/openings) lives in the private
+superrepo-level `lucena-core`; and this repo owns the whole tactical
+lifecycle behind its three-part contract:
+
+1. **why** — `(fen, solution, played)` → fact sheet (`factsheet.py`, existing)
+2. **has_tactics** — `(fen[, move], engine)` → `TacticVerdict` (`has_tactics.py`,
+   new): census proposes, `detect_combination`'s engine verdict decides
+   "tactic", the analyse gap prices uniqueness
+3. **tree** — tactical FEN → forcing-win tree (`line_tree.py`, `puzzle.py`,
+   moved in) → walked by `DrillState` (`drill.py`)
+
+New residents, all differential-gated against the frozen engine originals
+before those were deleted (0 real diffs everywhere; two benign ordering
+classes adjudicated + canonicalized — see MIGRATION.md):
+- `src/census/` — the prospective detectors (fork, pin, hanging, defender,
+  null_move, combination): what EXISTS in the position, complementing
+  `mechanism.py`'s retrospective what-the-line-USED. SEE via `lucena_core.see`.
+- `src/facts.py` + `src/hints.py` — the salience-ranked fact sheet + Socratic
+  hint ladder.
+- `src/_reconcile.py` — the engine-agreement kernel ("a SEE/geometry fact
+  that contradicts the engine loses"), shared by `build_fact_sheet` and
+  `has_tactics`.
+- `src/brilliant.py` — sound-sacrifice (!!) classification.
+
+Substrate: python-chess everywhere (the Rust board is gone); migrated modules
+ride `lucena_core.board.Board` — the compat class with the old wrapper API —
+while new code uses python-chess directly. That seam is deliberate and
+documented, not an accident.
+
 ## Infrastructure notes
 
 - Engine: lucena-engine gRPC, `LUCENA_ADDR` (default `127.0.0.1:50052`).
