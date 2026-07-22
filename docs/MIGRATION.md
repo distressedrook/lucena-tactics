@@ -90,10 +90,12 @@ gate `factsheet.py`/`mechanism.py`, which this migration never touched (the
 migrated modules are gated by the differential harness instead). Re-run at
 the next change to those layers.
 
-Deliberately left to the owner: pushing all commits (every repo is local-only),
-creating a private remote for lucena-tactics (+ .gitmodules entry), the
-lucena-engine v0.2.0 tag + PyPI publish, and lucena-plans' commit (its flip
-edits share files with pre-existing uncommitted owner changes).
+Post-close (2026-07-24): all repos pushed. lucena-tactics got its private
+remote (distressedrook/lucena-tactics) after a history rewrite purged 1.9GB
+of committed corpora (pack 381MB -> 283KB; KNOWN_ISSUES #8 records the one
+casualty, corpus_labels.jsonl.gz — regenerable). Registered as a proper
+submodule (.gitmodules). Still the owner's: the lucena-engine v0.2.0 tag +
+PyPI publish, and lucena-plans' mixed uncommitted worktree.
 
 ## No-regression doctrine for the rewrites
 
