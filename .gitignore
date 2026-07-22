@@ -7,3 +7,12 @@ experiments/data/
 experiments/corpus_labels.jsonl.gz
 experiments/lichess_db_puzzle.csv*
 research/experiments/*_diffs.jsonl
+
+# Large research corpora — NEVER committed (381MB pack lesson, 2026-07-23).
+# Sources: lichess_db_puzzle.csv.zst from database.lichess.org (Downloads keeps
+# a copy); lichess_elite pgn shared with lucena-plans/research/data/.
+research/experiments/lichess_db_puzzle.csv
+research/experiments/lichess_db_puzzle.csv.zst
+research/experiments/corpus_labels.jsonl.gz
+research/experiments/data/lichess_elite_2023-01.pgn
+research/experiments/data/
