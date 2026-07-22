@@ -4,3 +4,8 @@ python-chess>=1.10
 google-genai>=1.0
 fastapi>=0.110
 uvicorn>=0.29
+# poisoned_line_detector.py (moved in from lucena-engine 2026-07-22) imports
+# lucena_engine directly (board/reads/_fen/evalmodel) — install editable
+# from the local checkout during development:
+#   pip install -e ../engine
+lucena-engine>=0.1.2

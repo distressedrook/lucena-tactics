@@ -1,8 +1,18 @@
-# chess-lab — progress log
+# lucena-tactics — grounded tactical-mistake explanations
 
-*Last updated: 2026-07-20 (day one — theory to shipped pipeline in one session)*
+**What this project is:** explain WHY a played move loses and WHY the
+solution wins, every claim traceable to an engine counterfactual or a total
+geometric predicate, never parsed from a PV and never inferred by an LLM. This
+is the **tactical** sibling of `lucena-plans` (positional pedagogy — plans in
+quiet positions); it shares the method (theorem-first, human-adjudicated,
+corpus-validated) but none of its runtime. Formerly `chess-lab`; renamed and
+moved into the Lucena superrepo 2026-07-22.
 
----
+**Layout (2026-07-22 restructure):** `src/` (the library — a proper Python
+package, `explainer/` renamed in place, internal relative imports unchanged),
+`docs/` (`KNOWN_ISSUES.md`), `research/` (`experiments/`: the labeling
+pipeline, adjudication records, corpus data). File names below are module
+names inside `src/`.
 
 ## The thesis
 
@@ -12,12 +22,12 @@ never *parsed* from the line and never *inferred* by an LLM; it is
 **reconstructed by re-querying the engine with counterfactuals**, expressed as
 witnessed predicates, and only then lexicalized into prose.
 
-Core principles, each validated the hard way today:
+Core principles, each validated the hard way on day one:
 
 - **Explanation is contrastive.** The explanandum is (line, foil), never the
   line alone. For puzzles the foil is given — the user's failed move.
 - **Tactical why = the difference between branches. Positional why = the
-  invariant across branches.** (Positional layer designed, not yet built.)
+  invariant across branches.** (The positional half became `lucena-plans`.)
 - **Presence is geometry; the point is causality.** A fork that exists but
   isn't *used* is trivia. Every mechanism claim needs a counterfactual.
 - **An unsound proof is worse than silence.**
@@ -26,23 +36,22 @@ Core principles, each validated the hard way today:
 - **Human adjudication supplies definitions, not labels.** One ruling on one
   case compiles into a rule that re-adjudicates the whole corpus.
 
----
+## What is built
 
-## What is built (committed)
-
-### The product pipeline (`explainer/`)
+### The product pipeline (`src/`)
 
 `POST /why {fen, solution, played}` → grounded coaching explanation.
 
 | module | role |
 |---|---|
-| `probes.py` | engine truth — fixed-node gRPC to lucena-engine (deterministic) |
+| `probes.py` | engine truth — fixed-node gRPC to lucena-engine's Truth service (deterministic). Re-exports the shared client from `/common/engine_client` (2026-07-22 — see below). |
 | `predicates.py` | ply-level geometric predicates (total functions, python-chess) |
 | `mechanism.py` | mechanism naming: geometric theorems + engine counterfactuals |
 | `factsheet.py` | two-axis fact sheet (forfeit × error), every slot witnessed |
 | `takeaways.py` | curated habit table — hand-written pedagogy, deterministic |
 | `lexicalize.py` | Gemini as constrained lexicalizer + verifier + template floor |
 | `server.py` / `cli.py` | FastAPI endpoint / CLI |
+| `poisoned_line_detector.py` | human-trap detection (rating-weighted Maia policy × Stockfish refutation). Moved in from `lucena-engine` 2026-07-22 — see below. |
 
 ### The fact sheet (two axes + trimmings)
 
@@ -54,7 +63,7 @@ Core principles, each validated the hard way today:
   `none` (pure omission — no scolding)
 - plus `refutation`, `delta`, `salvage` (3-state), `mechanism`, `takeaway`
 
-### Mechanism vocabulary (11 mechanisms)
+### Mechanism vocabulary (11 graduated + 2 candidate/conditional)
 
 | mechanism | status | basis |
 |---|---|---|
@@ -66,9 +75,9 @@ Core principles, each validated the hard way today:
 | defender_removal | **graduated** | three human ratifications after rulings #12/#13/#15 |
 | attraction | **graduated** (confirm tier only) | differential compulsion + bait boundary |
 | mate_threat | **graduated** (confirm tier) | ransom reclassification, carries refutations |
-| overload | conditional | conscription (rule-forced reply) or second-duty view |
-| intermezzo | candidate | new tonight — two-pending ordering shape (0JDnk); 9 fired, needs adjudication |
-| file_battery | candidate | new vocabulary from ruling #14; needs a real detector |
+| overload | conditional | conscription (rule-forced reply) or second-duty view — see `docs/KNOWN_ISSUES.md` #4 |
+| intermezzo | candidate | two-pending ordering shape (0JDnk); 9 fired, needs adjudication — `docs/KNOWN_ISSUES.md` #3 |
+| file_battery | candidate | new vocabulary from ruling #14; needs a real detector — `docs/KNOWN_ISSUES.md` #3 |
 
 ### The verifier contract (LLM hardening)
 
@@ -82,8 +91,6 @@ Stress-tested against Sonnet (fabricated "overload"/"clean piece up" —
 caught) and gemini-flash-lite (omitted the mechanism — caught). Config:
 `GEMINI_API_KEY`, `EXPLAINER_GEMINI_MODEL` (currently flash-lite).
 
----
-
 ## Validation (all measured, all reproducible)
 
 | claim | number | where |
@@ -92,11 +99,12 @@ caught) and gemini-flash-lite (omitted the mechanism — caught). Config:
 | Maia foil coverage | 400/400 | both runs |
 | Mechanism coverage | 53% of puzzles get a named point | 299-puzzle corpus |
 | Mechanism label agreement | **87%** (labels known-incomplete → lower bound) | same corpus |
-| Adjudication | **55 cases → 0 pending** | `experiments/adjudication_verdicts.json` |
-| Regression suite | 15 rulings, two tiers, all green | `experiments/test_rulings.py` |
+| Adjudication | **55 cases → 0 pending** | `research/experiments/adjudication_verdicts.json` |
+| Regression suite | 15 rulings, two tiers, all green | `research/experiments/test_rulings.py` |
 
 Failure boundary is *mapped*: tactical puzzles ~95%+, endgame technique ~0%
-(pawn races, king walks — the positional layer's job).
+(pawn races, king walks — the positional layer's job; see
+`docs/KNOWN_ISSUES.md` #2).
 
 ## The 15 adjudicated rulings (the doctrine)
 
@@ -120,104 +128,87 @@ Meta-lesson: every ruling was a *definition*, not a label — agency, bait,
 differential, urgency, soundness. ~90 minutes of adjudication moved mechanism
 agreement from 38% → 87% and queue 55 → 0.
 
-## Supporting results from earlier in the day
+## Supporting results from the founding session
 
 - **Positional pipeline (designed + prototyped):** term-trajectory extractor
-  over the Carlsbad corpus works (`experiments/trajectory.py`); v1 needs
-  quiescence filtering + drift (not event) segmentation. 311k elite games
-  downloaded; ~15k/month Carlsbad candidates.
-- **Plan-discovery design:** segment → delta-vectors → cluster within pawn
-  structures → human names clusters → rediscovery test on Carlsbad. Pilot
-  costed at ~$0 cash, ~15–25 human hours.
+  over the Carlsbad corpus works; v1 needed quiescence filtering + drift (not
+  event) segmentation. This whole track became `lucena-plans` the next day
+  (2026-07-21 split) — see that repo's own `CLAUDE.md` for everything after.
 - **plan_foil analysis** (why a *plan* fails): duty-retention enumeration
   demonstrated on 0L0Sw (`f5 Ng3!` — one square does both jobs). Verdict:
-  reliable only for *stated* intent (user tells us their idea); automatic
-  intent attribution is unverifiable — build interactive, not automatic.
+  reliable only for *stated* intent; automatic intent attribution is
+  unverifiable — build interactive, not automatic (`docs/KNOWN_ISSUES.md` #6).
 - **LLM-provider decision:** Gemini (user's key). Model is deliberately the
   least-trusted, most-replaceable component.
 
----
-
-## Next plans (priority order)
-
-### Ship-blockers
-1. **Precompute cache** — puzzle set × Maia top-3 human foils → fact sheets
-   computed offline. Kills the 10–60s online latency; click-"why" becomes a
-   lookup. Also freezes outputs for QA.
-2. **Supervised engine server** — v0.1.2 currently runs from a `nohup` out of
-   a scratchpad venv on :50052. Needs a launchd/systemd-style supervised
-   launch + repo-local venv. (Also: `maia_available` lies on the stale
-   :50051 servers; Maia policy field always 0.0 — file upstream.)
-
-### Product depth
-3. **0IJMb final ruling** (user ✅ vs confirm-tier reject; recommendation:
-   uphold ruling #7 — all defenses within 27cp).
-4. **Intermezzo adjudication** (9 candidates) and **x-ray/skewer vocabulary**
-   (0L0Sw: skewer-poisoned recapture; founding case waiting).
-5. **Takeaway table curation** — expand/edit `takeaways.py` (user-owned).
-6. **Tagged-sentence verification** — sentence-level slot citations; the last
-   step before letting a stronger LLM write prose in production.
-7. **plan_foil interactive mode** — "here's what I was trying" → duty-table
-   refutation of the stated plan (founding case 0L0Sw, user's own f5 idea).
-
-### Research track
-8. **Positional layer v1** — quiescence + drift segmentation → first human
-   audit of ~100 episodes → invariance probes.
-9. **Plan discovery pilot** — Carlsbad rediscovery test.
-10. **idea.py** — explain *correct* moves: foil = opponent's defenses;
-    enumerate → refute → ablate.
-
-### Longer horizon
-- Mechanism vocabulary expansion: pins/skewers as alignment triples,
-  discovered attacks (predicate exists), clearance, interference.
-- Intent classifier as proposer-only (Maia-style firewall), trained on
-  pipeline output at scale; unsupervised plan discovery feeding a named,
-  verifiable plan vocabulary.
-- The falsification tests: explanation→position identification; annotator
-  agreement on mechanism names vs Lichess themes at scale.
-
----
-
-## Infrastructure notes
-
-- Engine: lucena-engine gRPC on :50052 (v0.1.2 from ~/Development/lucena via
-  PYTHONPATH; stale v0.1.0 pair on :50051 from a Trashed venv — retire them).
-- Maia: `~/.lucena/maia-venv` (maia3), wired via `LUCENA_MAIA`.
-- Determinism: fixed nodes everywhere (`EXPLAINER_NODES=2M`, forfeit probe 4M).
-- Data: experiments/*.jsonl are the validated corpus runs (train + held-out);
-  adjudication record in `adjudication_verdicts.json`.
-- Gemini key was pasted in-session — **rotate it**.
-
----
-
-## Addendum (late day one): the three-tagged-games experiment
+## The three-tagged-games experiment (the founding result, shared with lucena-plans)
 
 Three annotated study games (Lilienthal, Tal, Benko — minority attack, spans
-marked by the annotator) produced the positional track's first major finding:
+marked by the annotator) produced the positional track's first major finding,
+right before it split off:
 
 **The minority attack's CREATION phase is invisible to static term drift.**
-Across all three annotated spans, no eval term moves consistently (pawns +8/+9cp
-— the backward c-pawn's value is future pressure, not present centipawns). What
-v1's drift detection finds is the EXPLOITATION phase (Benko: activity +181,
-pawns +136 after the weakness was fixed). The sowing is silent; the harvest drifts.
+Across all three annotated spans, no eval term moves consistently (pawns
++8/+9cp — the backward c-pawn's value is future pressure, not present
+centipawns). What v1's drift detection finds is the EXPLOITATION phase
+(Benko: activity +181, pawns +136 after the weakness was fixed). The sowing is
+silent; the harvest drifts.
 
 **The invariant is the CHOREOGRAPHY**: minority-side pawn traffic (b2-b4-b5,
 a4 support) and the b5/c6 lever. Plans that restructure are observable in the
-moves; plans that accumulate are observable in the terms. The episode
-representation must carry both channels or clustering finds only harvests.
+moves; plans that accumulate are observable in the terms.
 
 **Consequence delivered immediately**: `detect_minority_attack()` — a
 choreography theorem, mechanism-style — found **53 minority attacks in 28,461
-elite games** on first run. The first named, detectable, corpus-validated plan
-in the system. Method note: 3 tagged games -> falsified a representation,
-refined the theory, and yielded a working detector, in under an hour — the
-ruling-loop applied to plans.
+elite games** on first run, the first named, corpus-validated plan in the
+system, and the seed of everything `lucena-plans` became.
 
----
+## 2026-07-22: extraction and restructure
 
-## 2026-07-21: positional track split out
+Two things moved OUT of this repo's orbit and one thing moved IN, all the
+same day:
 
-The plan-naming / positional-pedagogy work now lives in its own project:
-`~/Development/chess-plans` (detectors, trajectories, episodes, study data,
-CLAUDE.md with full context). chess-lab stays focused on tactical puzzle
-explanations. Shared method, independent code.
+- **`/common/engine_client`** — the `Probes` gRPC client + generated
+  protobuf stubs, previously vendored here (`gen/lucena/engine/v1/`) AND
+  independently re-vendored/cross-imported by `lucena-plans`' research
+  harness via a `sys.path` hack straight into this repo's source tree (which
+  broke outright when this repo was renamed from `chess-lab`). Extracted to
+  the superrepo's `/common` — genuinely shared code gets ONE copy, not a
+  cross-repo path hack. `src/probes.py` is now a thin re-export.
+- **`docs/KNOWN_ISSUES.md` + this file** replace `PROGRESS.md` — same
+  content, reorganized to match `lucena-plans`' documentation convention
+  (a lab-notebook `CLAUDE.md` + a caveats-only `KNOWN_ISSUES.md`), so both
+  sibling repos read the same way.
+- **`poisoned_line_detector.py`** moved IN from `lucena-engine` (the
+  human-trap detector: rating-weighted Maia policy × Stockfish refutation,
+  node-limited/deterministic search). `lucena-engine` is being kept as thin,
+  license-neutral infrastructure (board core + UCI/gRPC transport); anything
+  that's genuinely differentiated coaching logic belongs in a private repo —
+  this detector is squarely that, and belongs beside the rest of the tactical
+  vocabulary it complements (a trap is just a mechanism the OPPONENT is
+  hoping you walk into). Imports rewritten from `lucena_engine`'s internal
+  relative imports (`.reads`, `._fen`, `.board`, `.evalmodel`) to the normal
+  external form (`lucena_engine.reads`, etc.) — this repo now depends on
+  `lucena-engine` as an ordinary pip package, the same relationship
+  `lucena-backend` already has.
+
+## Infrastructure notes
+
+- Engine: lucena-engine gRPC, `LUCENA_ADDR` (default `127.0.0.1:50052`).
+  See `docs/KNOWN_ISSUES.md` #1 for the unsupervised-server gap.
+- Maia: wired via `LUCENA_MAIA`.
+- Determinism: fixed nodes everywhere (`EXPLAINER_NODES=2M`, forfeit probe 4M).
+- Data: `research/experiments/*.jsonl` are the validated corpus runs (train +
+  held-out); adjudication record in `adjudication_verdicts.json`.
+
+## Relation to lucena-plans
+
+- `lucena-plans` = positional pedagogy (plans in quiet positions). This repo
+  = tactical mistake explanation (why a forcing line wins/loses). Shared
+  philosophy (theorem-first, human-adjudicated, corpus-validated,
+  counterfactual-verified) and now shared plumbing (`/common/engine_client`);
+  independent detector vocabulary and independent data.
+- Both repos' research harnesses run under THIS repo's venv (`.venv/`) for
+  gRPC/protobuf — see `lucena-plans/research/experiments/tools/rolls.py` and
+  neighboring scripts, which reach `.venv/bin/python` here by the same
+  sibling-path convention as `/common`.
