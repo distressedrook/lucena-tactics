@@ -11,6 +11,6 @@ manipulation, no computed relative paths; CI provisions the install.
 """
 from __future__ import annotations
 
-from common.engine_client.probes import Probes, Line, Threat, ENGINE_ADDR, NODES, THREAT_NODES
+from lucena_core.engine_client.probes import Probes, Line, Threat, ENGINE_ADDR, NODES, THREAT_NODES
 
 __all__ = ["Probes", "Line", "Threat", "ENGINE_ADDR", "NODES", "THREAT_NODES"]

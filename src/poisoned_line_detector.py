@@ -30,9 +30,9 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 
-from lucena_engine.reads import material as _material
-from lucena_engine._fen import norm_fen as _norm
-from lucena_engine.board import Board
+from lucena_core.reads import material as _material
+from lucena_core._fen import norm_fen as _norm
+from lucena_core.board import Board
 from lucena_engine.evalmodel import win_pct_from_score
 
 
