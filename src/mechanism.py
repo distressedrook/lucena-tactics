@@ -1134,6 +1134,8 @@ def detect_interference(fen: str, san_line: list[str], ply: int = 0) -> dict | N
         return None
     s = mv.to_square
 
+    if board.piece_at(s) is not None:
+        return None                               # interference INTERPOSES on an empty square
     cuts = []
     for d_sq, dp in board.piece_map().items():
         if dp.color == us or dp.piece_type not in (chess.BISHOP, chess.ROOK, chess.QUEEN):
@@ -1144,8 +1146,12 @@ def detect_interference(fen: str, san_line: list[str], ply: int = 0) -> dict | N
         if t_sq is None:
             continue
         tp = board.piece_at(t_sq)
-        if tp is None or tp.color == us:
-            continue                              # nothing of theirs beyond s
+        # the cut line must have been DEFENDING a piece — never the king: a
+        # slider "defending its king" through a square is check/pin geometry,
+        # and counting it made every Rf8+ Rxf8 Qxf8# deflection mate fire here
+        # (the 2026-07-24 overfiring bug).
+        if tp is None or tp.color == us or tp.piece_type == chess.KING:
+            continue
         cuts.append((d_sq, t_sq))
     if not cuts:
         return None
@@ -1160,13 +1166,12 @@ def detect_interference(fen: str, san_line: list[str], ply: int = 0) -> dict | N
             m2 = b2.parse_san(san)
         except ValueError:
             break
+        if b2.piece_at(s) is None or b2.piece_at(s).color != us:
+            break                                 # the interposer fell — cut no longer stands
         if (j - ply) % 2 == 0 and b2.is_capture(m2) and m2.to_square in cut_targets:
-            collected = (san, m2.to_square)
+            collected = (san, m2.to_square)       # usage = collecting a cut target
             break
         b2.push(m2)
-        if b2.is_checkmate():
-            collected = (san, None)               # the cut enabled the mate
-            break
     if collected is None:
         return None
     san_c, t_used = collected

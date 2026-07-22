@@ -131,3 +131,24 @@ matched-rates say the detectors catch the crisp shapes only — the fuzzy
 remainder (defensive-line cuts to squares, multi-purpose clearances) needs
 either richer shapes or the adjudication loop's verdict that the label is
 the noisy party.
+
+## 10. RESOLVED same-day: interference overfired on deflection mates
+
+**Where:** `src/mechanism.py::detect_interference` (2026-07-24, caught by the
+owner hours after landing).
+
+**What was wrong:** two junk shapes — (1) the "defended piece behind the cut
+square" was allowed to be the KING, so every `Rf8+ Rxf8 Qxf8#` deflection
+mate fired as "interference cutting the rook's defense of its king" (a
+slider guarding its king through a square is check/pin geometry, not a
+defense line); (2) a generic any-mate-counts-as-usage clause rubber-stamped
+those lines, and capture-arrivals counted as "interpositions".
+
+**Fix:** classical shape enforced — the interposition square must be EMPTY
+(Novotny sacrifices onto a square), the cut line must defend a NON-king
+piece, the interposer must still stand when the target is collected, and
+usage means collecting a cut target (the mate clause is gone). Measured:
+false fires 95/3,986 non-labeled puzzles (2.4%) → **0/4,000**; labeled
+matches 30→21 of 120 — the 9 lost were exactly the king-target shapes,
+which the deflection/mate vocabulary already names. Pinned by two negative
+tests in test_gap_detectors.py. An unsound proof is worse than silence.

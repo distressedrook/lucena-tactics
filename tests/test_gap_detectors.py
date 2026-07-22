@@ -34,26 +34,33 @@ def test_xray_needs_the_blocker_to_leave():
     assert detect_xray(XRAY_FEN, ["Qxd8+", "Rxd8"]) is None  # no collection ply
 
 
-# ---- interference: ...Rd1+ Rxd1 (the e4 rook is dragged onto d1, cutting
-#      the e1 rook's defense) Rxd1# — cut-line usage ends in mate. (007mr)
-INTERF_FEN = "5k2/p2r3p/1p4pP/3r1q2/4R3/2P5/PP3PQ1/K3R3 b - - 0 33"
-INTERF_LINE = ["Rd1+", "Rxd1", "Rxd1#"]
+# ---- interference: ...Bc2! interposes on the d1-queen's defense line of the
+#      a4 knight; Bxa4 collects the now-loose piece. (Lichess 00Yuf)
+INTERF_FEN = "5rk1/n1q2ppp/1p1bpn2/3p1b2/NP1P4/P3PN2/3BBPPP/3Q1RK1 b - - 1 19"
+INTERF_LINE = ["Bc2", "Qa1", "Bxa4"]
 
 
 def test_interference_cut_line_collected():
-    # fires at the second window (after Rd1+ Rxd1, the recapture on d1 is
-    # defended only through a cut ray) — via name_point's window scan
-    m = name_point(INTERF_FEN, INTERF_LINE)
-    assert m is not None
-    fams = {m["mechanism"]}
-    g = m.get("geometry_candidate")
-    if g:
-        fams.add(g["mechanism"])
-    assert "interference" in fams or "mating_net" in fams  # mate may outrank
-    # the detector itself must fire somewhere in the line
-    fired = any(detect_interference(INTERF_FEN, INTERF_LINE) is not None
-                for _ in [0]) or g is not None
-    assert fired
+    m = detect_interference(INTERF_FEN, INTERF_LINE)
+    assert m is not None and m["mechanism"] == "interference"
+    assert m["square"] == "c2" and m["target"] == "a4"
+    assert m["cut_lines"][0]["slider"] == "queen on d1"
+    assert m["collected_with"] == "Bxa4"
+
+
+def test_interference_never_fires_on_king_target_deflection_mates():
+    # Rf8+ Rxf8 Qxf8# — a deflection mate, NOT interference: a slider
+    # "defending its king" through a square is check/pin geometry. This was
+    # the 2026-07-24 overfiring bug (95 false fires per 4k puzzles -> 0).
+    fen = "4r2k/3q3r/1p4pQ/p1pP4/2P4P/1N4p1/PP3RK1/8 w - - 2 38"
+    assert detect_interference(fen, ["Rf8+", "Rxf8", "Qxf8#"]) is None
+
+
+def test_interference_requires_empty_square_interposition():
+    # arrival by capture is not an interposition — the classical shape
+    # sacrifices ONTO an empty square (Novotny).
+    fen = "3r4/4kp1r/p2Np1p1/3bP3/P2n4/8/1P3RPP/5RK1 w - - 5 26"
+    assert detect_interference(fen, ["Rxf7+", "Rxf7", "Rxf7#"]) is None
 
 
 # ---- clearance (line): ...Ne2+ vacates the d4-square/ray with check; after
