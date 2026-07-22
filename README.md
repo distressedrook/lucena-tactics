@@ -42,6 +42,11 @@ src/                     THE LIBRARY (a Python package; internal imports
   poisoned_line_detector.py human-trap detection (rating-weighted Maia
                            policy x Stockfish refutation); moved in from
                            lucena-engine 2026-07-22
+  drill.py                  DrillState — forcing-win tree walker/adjudicator
+                           (walks caller-supplied trees; never builds one);
+                           moved in from lucena-backend 2026-07-22
+  drill_feedback.py         deterministic drill feedback beats (never
+                           LLM-authored); moved in with drill.py
   server.py / cli.py        FastAPI endpoint / CLI
 
 docs/                    KNOWN_ISSUES.md (open, understood, not yet fixed)

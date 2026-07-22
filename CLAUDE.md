@@ -63,7 +63,7 @@ Core principles, each validated the hard way on day one:
   `none` (pure omission — no scolding)
 - plus `refutation`, `delta`, `salvage` (3-state), `mechanism`, `takeaway`
 
-### Mechanism vocabulary (11 graduated + 2 candidate/conditional)
+### Mechanism vocabulary (11 graduated + 7 candidate/conditional)
 
 | mechanism | status | basis |
 |---|---|---|
@@ -78,6 +78,11 @@ Core principles, each validated the hard way on day one:
 | overload | conditional | conscription (rule-forced reply) or second-duty view — see `docs/KNOWN_ISSUES.md` #4 |
 | intermezzo | candidate | two-pending ordering shape (0JDnk); 9 fired, needs adjudication — `docs/KNOWN_ISSUES.md` #3 |
 | file_battery | candidate | new vocabulary from ruling #14; needs a real detector — `docs/KNOWN_ISSUES.md` #3 |
+| pin | candidate | two shapes: paralyzed defender (illegal recapture — total geometry) + win-the-pinned-piece; 0 adjudications — `docs/KNOWN_ISSUES.md` #7 |
+| skewer | candidate | front outranks rear on a ray, compelled to step off, line collects the rear |
+| discovered_attack | candidate | mover unmasks a slider + poses a second threat; line collects one of the two |
+| trapped_piece | candidate | every legal move of the victim loses it (witnessed per-square); names the doomed case ruling #11 rejects as "hanging" |
+| battery | candidate | generalizes ruling #14 to window-start: front captures, rear wins the exchange |
 
 ### The verifier contract (LLM hardening)
 
@@ -191,6 +196,77 @@ same day:
   external form (`lucena_engine.reads`, etc.) — this repo now depends on
   `lucena-engine` as an ordinary pip package, the same relationship
   `lucena-backend` already has.
+
+## 2026-07-22 (later): the ray-geometry vocabulary lands (candidate tier)
+
+The gap between the verifier's word-blocklist and the detector vocabulary is
+closed: pin, skewer, x-ray/battery, discovered attack, and trapped piece were
+named in `lexicalize._MECHANISM_WORDS` as fabrications to catch, but nothing
+could ever *earn* those words. Five detectors added to `src/mechanism.py`
+(`detect_pin`, `detect_skewer`, `detect_discovered_attack`,
+`detect_trapped_piece`, `detect_battery`), all following the house theorems:
+
+- **Total geometry over (fen, line)** — no probes, no LLM. The contract for
+  this layer is `(fen, pv)`: the single top engine line, start to end. No
+  rolls, no diffing of alternatives — that's `lucena-plans`' problem shape,
+  not this one.
+- **Presence is geometry; the point is the collection.** Every detector
+  requires the line itself to USE the geometry: the skewered rear must be
+  taken, the pinned piece collected with the pin still standing, the trapped
+  piece hunted down square-by-square, the battery's rear piece must actually
+  recapture. A shape that exists but is never cashed is trivia and stays silent.
+- **Pin has two shapes** — `paralyzed_defender` (our capture's defenders have
+  NO legal recapture and at least one is absolutely pinned: python-chess
+  legality makes this a total fact; relative pins deliberately excluded here
+  because an ill-advised recapture is an engine question) and `win_pinned`
+  (absolute or relative pin + the line collects the piece on its square).
+- **trapped_piece is ruling #11's missing name**: `confirm_hanging` rejects
+  the doomed piece ("no urgency, no lesson") — this detector names why it was
+  doomed, with a per-square `no_escape` witness (mate-pattern style).
+- **Primacy: candidates never preempt adjudicated vocabulary — not even
+  across windows.** First cut returned a window-0 geometry hit immediately
+  and broke rulings 0VHBI (early discovered-attack view silenced the true
+  defender_removal two plies in) and 03cd7 (preempted file_battery). Fixed:
+  `name_point` records the earliest geometry hit, finishes the graduated
+  scan, attaches it as `geometry_candidate` (redacted from the LLM, like
+  `mechanism_candidate`) and returns it alone only when mechanism, fork,
+  hanging, and intermezzo are all silent. All 15 rulings green after.
+- Verifier hardening: "battery" added to the doctrine-word blocklist (it was
+  missing — an LLM could have said it unpunished).
+- Tests: `tests/test_geometry_mechanisms.py` — 20 pure-geometry cases,
+  positive + negative + orchestrator-primacy + redaction plumbing, every FEN
+  hand-verified. Also repaired `research/experiments/test_rulings.py`'s stale
+  `explainer.` imports/`sys.path` from the morning's `src/` rename (it
+  couldn't run at all).
+
+Graduation path: same as everything else — corpus run over the puzzle set,
+precision sampling, human adjudication of the disagreements. Until then these
+five are data, not speech (`docs/KNOWN_ISSUES.md` #7).
+
+## 2026-07-22 (later still): the drill walker moves in from the backend
+
+`drill.py` (`DrillState` — the forcing-win tree walker/adjudicator: play,
+branch backtrack with deferred Continue, structural-path serialize/restore)
+and `drill_feedback.py` (the deterministic feedback beats — never
+LLM-authored) moved here from `lucena-backend/grounding_tools`, by the same
+reasoning as the poisoned-line detector that morning: pure tree-walking
+coaching logic, no DB, no session state — it belongs beside the tactical
+vocabulary. Specifics:
+
+- The tree itself is still built by `lucena_engine.line_tree.build_line_tree`
+  (engine infrastructure); this module only WALKS caller-supplied trees.
+- The backend keeps a thin re-export shim at `grounding_tools/drill.py`, so
+  every import site (`tools.py`, `coaching/strategies.py`) is untouched; its
+  sys.path bootstrap now has ONE home, `grounding_tools/_tactics_path.py`
+  (shared with the poisoned_line_detector import).
+- `drill.py` dual-imports `drill_feedback` (package-relative here, top-level
+  under the backend's bootstrap).
+- The two pure walker test files (`test_drill_restore.py`,
+  `test_drill_history.py`) moved with it into `tests/`; the backend keeps its
+  integration tests (`test_coach_drill.py` et al.), all green through the shim.
+- An unreachable stale block after `continue_branch`'s return (a leftover
+  duplicate of `_next_or_finish`'s ending) was dropped in transit — provably
+  dead, behavior identical.
 
 ## Infrastructure notes
 

@@ -6,3 +6,4 @@ __pycache__/
 experiments/data/
 experiments/corpus_labels.jsonl.gz
 experiments/lichess_db_puzzle.csv*
+research/experiments/*_diffs.jsonl

@@ -67,3 +67,31 @@ move) is reliable only when the user STATES their intended plan — automatic
 intent attribution from the board alone was tested and judged unverifiable.
 Don't build an automatic version; the interactive one (user states the idea,
 system refutes it via the duty table) is the validated design.
+
+## 7. Ray-geometry vocabulary is candidate-tier, zero adjudications
+
+**Where:** `src/mechanism.py` — `detect_pin`, `detect_skewer`,
+`detect_discovered_attack`, `detect_trapped_piece`, `detect_battery`
+(added 2026-07-22).
+
+**What's wrong:** nothing known — but nothing validated either. The five
+detectors are pure geometry with line-anchored causality and 20 green unit
+tests, but zero corpus numbers and zero human rulings. Per the graduation
+gate they are never spoken: `name_point` returns them only when every
+adjudicated mechanism is silent, and the factsheet stores them as
+`mechanism_candidate` / attaches them as `geometry_candidate` (both redacted
+from the LLM's input). Known soft spots to probe during adjudication:
+
+- `detect_pin` shape B (`win_pinned`, relative pins) is the noisiest by
+  construction — a mundane winning exchange can coincide with an incidental
+  ray alignment. Expect the adjudication loop to tighten the "pin mattered"
+  gate the way rulings #1/#7 tightened the lure gates.
+- `detect_trapped_piece` uses attackers() counts for its escape accounting —
+  a pinned "hunter" is counted as covering a flight square it can't legally
+  take on.
+- `detect_battery` requires the rear recapture to come literally from the
+  rear square; a tripled battery or a rearranged recapture order won't fire.
+
+Graduation needs the standard funnel: run over the 299-puzzle corpus +
+held-out set, sample precision, adjudicate the disagreements, then admit each
+mechanism to the factsheet's GRADUATED set (and template prose) one by one.

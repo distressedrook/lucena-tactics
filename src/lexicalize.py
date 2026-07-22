@@ -176,6 +176,7 @@ _MECHANISM_WORDS = {
     "zwischenzug": "intermezzo", "intermezzo": "intermezzo",
     "smothered": "smothered_mate", "decoy": "attraction",
     "x-ray": "xray", "xray": "xray", "discovered": "discovered",
+    "battery": "battery",
     "sacrifice": "sacrifice", "sacrificed": "sacrifice", "sacrifices": "sacrifice",
     "trapped": "trapped", "hanging": "hanging_piece", "hangs": "hanging_piece",
     "back-rank": "back_rank_mate", "back rank": "back_rank_mate",
@@ -248,7 +249,8 @@ def _redact(obj):
     ungraduated mechanism candidates. Never show the model what it can't say."""
     if isinstance(obj, dict):
         return {k: _redact(v) for k, v in obj.items()
-                if k not in ("mechanism_candidate", "secondary", "execution")}
+                if k not in ("mechanism_candidate", "secondary", "execution",
+                             "geometry_candidate")}
     if isinstance(obj, list):
         return [_redact(x) for x in obj]
     return obj

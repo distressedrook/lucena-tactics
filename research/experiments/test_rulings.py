@@ -3,11 +3,11 @@
 Each case is a DEFINITION established by the human adjudicator, not a bug fix.
 Any change to explainer/mechanism.py must keep every ruling green.
 
-Run:  ./.venv/bin/python experiments/test_rulings.py
+Run:  ./.venv/bin/python research/experiments/test_rulings.py
 """
 import sys, os
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
-from explainer.mechanism import name_point  # noqa: E402
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", ".."))
+from src.mechanism import name_point  # noqa: E402
 
 # (id, fen, solution line, expected primary mechanism, the ruling)
 SUITE = [
@@ -86,8 +86,8 @@ def main() -> int:
         print(f"{'✓' if ok else '✗'} {id_}: {got}"
               + ("" if ok else f"  (want {want})") + f"  — {ruling}")
     try:
-        from explainer.mechanism import confirm_hanging
-        from explainer.probes import Probes
+        from src.mechanism import confirm_hanging
+        from src.probes import Probes
         probes = Probes()
         for id_, fen, line, want_ok, ruling in CONFIRM_SUITE:
             m = name_point(fen, line)
