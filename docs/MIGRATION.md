@@ -4,7 +4,7 @@ Working record for the 2026-07-23 restructure (plan: superrepo owner's decision 
 The end state: `lucena-engine` (public AGPL, PyPI) shrinks to a pure
 Stockfish/Maia wrapper (`uci`, `maia`, `pool`, `evalmodel`, `nnue`); the Rust
 board core is **removed** (python-chess becomes the single board substrate in
-all private code; SEE reimplemented in python); a new private superrepo dir
+all internal code; SEE reimplemented in python); a new superrepo directory
 `/lucena-core` (import `lucena_core`) takes the board-truth modules + the gRPC
 client/server (absorbing `/common/engine_client`); the tactic set (detectors →
 `census/`, facts, hints, line_tree, puzzle, brilliant) is **rewritten on
